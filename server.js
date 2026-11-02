@@ -134,8 +134,18 @@ function dateFmt(s) {
   app.use(express.json({ limit: '30kb' }));
   app.use(session({ secret: sessionSecret, resave: false, saveUninitialized: false, cookie: { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 8 * 60 * 60 * 1000 } }));
   app.use(express.static(path.join(__dirname, 'public')));
-  // Public, read-only status page. It exposes current borrower names and recent borrow/return history as requested.
-  app.get('/status', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'status.html')));
+  // Public, read-only equipment status page (no admin login required).
+  // Both /status and /status.html resolve to the same page.
+  const statusPage = path.join(__dirname, 'public', 'status.html');
+  app.get(['/status', '/status/', '/status.html'], (_req, res) => {
+    if (!fs.existsSync(statusPage)) {
+      return res.status(500).type('text/plain').send(
+        'Missing public/status.html. Upload the public folder to GitHub and redeploy.'
+      );
+    }
+    res.set('Cache-Control', 'no-store');
+    return res.sendFile(statusPage);
+  });
   app.get('/api/public/status', (_req, res) => {
     res.set('Cache-Control', 'no-store');
     const keys = adapter.prepare('SELECT id,name,status,holder,total_qty,available_qty FROM keys ORDER BY id').all();
